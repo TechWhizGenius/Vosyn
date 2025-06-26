@@ -1,36 +1,38 @@
-import os
-import google.generativeai as genai
+# GOOGLE_API_KEY = "AIzaSyCqktNeWmGsAwEWDkhBWePFAXijEqytx8Q"
+
+from google import genai
+from google.genai import types
 from PIL import Image
 from io import BytesIO
+import os
 
-# Set your Google API Key here
-os.environ["GOOGLE_API_KEY"] = "AIzaSyCqktNeWmGsAwEWDkhBWePFAXijEqytx8Q"  # Replace with your key
+# === Initialize Gemini Client ===
+client = genai.Client()
 
-# Configure Gemini
-genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
+# === Your prompt ===
+contents = (
+    'Charminar refers to a historical monument and a popular tourist attraction in the city of Hyderabad, India. It is a massive arch-like structure with four minarets, located in the heart of the city, right at the center of the Chowmahalla Palace and the Golconda Fort.'
+)
 
-def generate_prompt(summary):
-    return f"Create a realistic and culturally relevant image representing: {summary}"
+# === Generate content ===
+response = client.models.generate_content(
+    model="gemini-2.0-flash-preview-image-generation",
+    contents=contents,
+    config=types.GenerateContentConfig(
+        response_modalities=['TEXT', 'IMAGE']
+    )
+)
 
-def generate_image(summary):
-    #model = genai.GenerativeModel("gemini-1.5-flash")
-    model="gemini-2.0-flash-preview-image-generation"
+# === Get current directory ===
+current_dir = os.path.dirname(os.path.abspath(__file__))
+output_path = os.path.join(current_dir, 'gemini-native-image.png')
 
-    prompt = generate_prompt(summary)
-
-    try:
-        response = model.generate_content(prompt, generation_config={"response_mime_type": "image/png"})
-
-        img_data = response.parts[0].data
-        image = Image.open(BytesIO(img_data))
-
-        filename = "_".join(summary.lower().split()[:5]) + ".png"
-        image.save(filename)
-        print(f"Image saved as {filename}")
-
-    except Exception as e:
-        print(f"Error generating image: {e}")
-
-if __name__ == "__main__":
-    summary = input("Enter summary for image generation: ")
-    generate_image(summary)
+# === Save and show image ===
+for part in response.candidates[0].content.parts:
+    if part.text is not None:
+        print(part.text)
+    elif part.inline_data is not None:
+        image = Image.open(BytesIO(part.inline_data.data))
+        image.save(output_path)
+        image.show()
+        print(f"Image saved at: {output_path}")
